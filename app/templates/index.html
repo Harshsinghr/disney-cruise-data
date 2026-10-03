@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disney Cruise Data</title>
+<style>
+  :root { --bg:#f6f8fb; --card:#fff; --ink:#14233b; --muted:#5b6b82; --line:#e1e7ef; --accent:#0b5cad; --tag:#e8f1fb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1623; --card:#16202f; --ink:#e8eef7; --muted:#92a3bb; --line:#26344a; --accent:#6ab0ff; --tag:#1d2f47; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header, main { max-width:1280px; margin:0 auto; padding:0 16px; }
+  header { padding-top:28px; }
+  h1 { margin:0 0 4px; font-size:26px; }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .stat b { display:block; font-size:24px; }
+  .stat span { color:var(--muted); font-size:13px; }
+  .bar { display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  input[type=search] { flex:1; min-width:220px; padding:10px 12px; border:1px solid var(--line); border-radius:8px;
+                       background:var(--card); color:var(--ink); font:inherit; }
+  .count { color:var(--muted); font-size:13px; }
+  .wrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:40px; }
+  table { border-collapse:collapse; width:100%; min-width:980px; }
+  th, td { padding:9px 12px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { position:sticky; top:0; background:var(--card); cursor:pointer; user-select:none; white-space:nowrap; font-size:13px; color:var(--muted); }
+  th:hover { color:var(--accent); }
+  th.asc::after { content:" \25B2"; } th.desc::after { content:" \25BC"; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tag { background:var(--tag); color:var(--accent); border-radius:999px; padding:2px 9px; font-size:12px; white-space:nowrap; }
+  .none { color:var(--muted); }
+  tr:last-child td { border-bottom:0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Disney Cruise Line &mdash; cruise data</h1>
+  <p class="sub">Scraped from disneycruise.disney.go.com/en-in &middot; data source: <b>{{ source }}</b></p>
+  <div class="stats">
+    <div class="stat"><b>{{ stats.cruises }}</b><span>cruise cards (35 pages)</span></div>
+    <div class="stat"><b>{{ stats.sailings }}</b><span>total sailings (dates)</span></div>
+    <div class="stat"><b>{{ stats.holiday }}</b><span>holiday cruises</span></div>
+    <div class="stat"><b>{{ stats.multi_date }}</b><span>cruises with &gt; 2 dates</span></div>
+    <div class="stat"><b>{{ stats.pacific }}</b><span>Pacific cruises</span></div>
+    <div class="stat"><b>{{ stats.ports }}</b><span>departure ports</span></div>
+  </div>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search cruise, port, location, tag&hellip;" autocomplete="off">
+    <span class="count" id="count"></span>
+  </div>
+  <div class="wrap">
+    <table id="t">
+      <thead><tr>
+        <th data-k="cruise_name">Cruise</th>
+        <th data-k="nights" data-num>Nights</th>
+        <th data-k="departure_port">Departs from</th>
+        <th data-k="itinerary_note">Note</th>
+        <th data-k="locations">Sailing to</th>
+        <th data-k="banner_tag">Theme</th>
+        <th data-k="offer">Offer</th>
+        <th data-k="price_from_inr" data-num>Price from (INR)</th>
+        <th data-k="num_dates" data-num>Dates</th>
+      </tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.cruise_name }}</td>
+          <td class="num" data-v="{{ r.nights }}">{{ r.nights }}</td>
+          <td>{{ r.departure_port }}</td>
+          <td>{% if r.itinerary_note == 'No Note' %}<span class="none">&mdash;</span>{% else %}{{ r.itinerary_note }}{% endif %}</td>
+          <td>{{ r.locations }}</td>
+          <td data-v="{{ r.banner_tag }}">{% if r.banner_tag == 'No Banner' %}<span class="none">&mdash;</span>{% else %}<span class="tag">{{ r.banner_tag }}</span>{% endif %}</td>
+          <td>{% if r.offer == 'No Offer' %}<span class="none">&mdash;</span>{% else %}{{ r.offer }}{% endif %}</td>
+          <td class="num" data-v="{{ r.price_from_inr }}">&#8377;{{ '{:,}'.format(r.price_from_inr) }}</td>
+          <td class="num" data-v="{{ r.num_dates }}">{{ r.num_dates }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+<script>
+  const tb = document.querySelector('#t tbody'), q = document.getElementById('q'), count = document.getElementById('count');
+  const rows = [...tb.rows];
+  function filter() {
+    const s = q.value.trim().toLowerCase(); let n = 0;
+    rows.forEach(r => { const hit = !s || r.innerText.toLowerCase().includes(s); r.hidden = !hit; n += hit; });
+    count.textContent = n + ' of ' + rows.length + ' cruises';
+  }
+  q.addEventListener('input', filter); filter();
+  document.querySelectorAll('th').forEach((th, i) => th.addEventListener('click', () => {
+    const asc = !th.classList.contains('asc'), num = th.hasAttribute('data-num');
+    document.querySelectorAll('th').forEach(h => h.classList.remove('asc', 'desc'));
+    th.classList.add(asc ? 'asc' : 'desc');
+    const val = r => { const c = r.cells[i], v = c.dataset.v ?? c.innerText.trim(); return num ? +v : v.toLowerCase(); };
+    rows.sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * (asc ? 1 : -1)).forEach(r => tb.appendChild(r));
+  }));
+</script>
+</body>
+</html>
